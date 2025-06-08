@@ -4,6 +4,7 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 import path from "path";
 import { fileURLToPath } from 'url';
+import { existsSync } from 'fs';
 
 import authRoutes from "./routes/auth.route.js";
 import userRoutes from "./routes/user.route.js";
@@ -45,7 +46,7 @@ if (process.env.NODE_ENV === "production") {
   try {
     const frontendPath = path.join(__dirname, "../../frontend/dist");
     // Check if the frontend build directory exists
-    if (require('fs').existsSync(frontendPath)) {
+    if (existsSync(frontendPath)) {
       app.use(express.static(frontendPath));
       app.get("*", (req, res) => {
         res.sendFile(path.join(frontendPath, "index.html"));
