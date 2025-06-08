@@ -4,7 +4,6 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 import path from "path";
 import { fileURLToPath } from 'url';
-import { existsSync } from 'fs';
 
 import authRoutes from "./routes/auth.route.js";
 import userRoutes from "./routes/user.route.js";
@@ -22,12 +21,11 @@ const __dirname = path.dirname(__filename);
 // Enable CORS with specific options
 app.use(
   cors({
-    origin: process.env.NODE_ENV === "production" 
-      ? process.env.FRONTEND_URL 
-      : "http://localhost:5173",
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
+    exposedHeaders: ['Set-Cookie']
   })
 );
 
@@ -41,11 +39,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// Health check endpoint
-app.get("/health", (req, res) => {
-  res.status(200).json({ status: "ok" });
-});
-
 // API routes
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
@@ -56,30 +49,41 @@ app.get("/api/test", (req, res) => {
   res.json({ message: "API is working!" });
 });
 
-// Only serve static files if we're in production and the frontend build exists
-if (process.env.NODE_ENV === "production") {
-  try {
-    const frontendPath = path.join(__dirname, "../../frontend/dist");
-    // Check if the frontend build directory exists
-    if (existsSync(frontendPath)) {
-      app.use(express.static(frontendPath));
-      app.get("*", (req, res) => {
-        res.sendFile(path.join(frontendPath, "index.html"));
-      });
-    } else {
-      console.log("Frontend build not found, skipping static file serving");
+// Health check endpoint
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
+});
+
+// Root endpoint
+app.get("/", (req, res) => {
+  res.json({ 
+    message: "Welcome to Streamify API",
+    status: "running",
+    version: "1.0.0",
+    endpoints: {
+      auth: "/api/auth",
+      users: "/api/users",
+      chat: "/api/chat",
+      health: "/health",
+      test: "/api/test"
     }
-  } catch (error) {
-    console.log("Error serving static files:", error);
-  }
-}
+  });
+});
 
 // 404 handler
 app.use((req, res) => {
   console.log(`404 - Not Found: ${req.method} ${req.url}`);
   res.status(404).json({ 
     success: false, 
-    message: `Cannot ${req.method} ${req.url}` 
+    message: `Cannot ${req.method} ${req.url}`,
+    availableEndpoints: {
+      root: "/",
+      auth: "/api/auth",
+      users: "/api/users",
+      chat: "/api/chat",
+      health: "/health",
+      test: "/api/test"
+    }
   });
 });
 
@@ -93,9 +97,22 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-  console.log(`API URL: http://localhost:${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV}`);
-  connectDB();
-});
+// Connect to MongoDB
+connectDB();
+
+// Start server
+if (process.env.NODE_ENV === "production") {
+  // In production, we don't need to call app.listen() as Vercel handles it
+  console.log("Running in production mode");
+} else {
+  // In development, we need to start the server
+  app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+    console.log(`API URL: http://localhost:${PORT}`);
+    console.log(`Environment: ${process.env.NODE_ENV}`);
+    console.log(`Frontend URL: ${process.env.FRONTEND_URL || 'Not set'}`);
+  });
+}
+
+// Export for Vercel
+export default app;

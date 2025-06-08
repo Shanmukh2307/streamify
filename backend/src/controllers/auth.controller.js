@@ -148,3 +148,7 @@ export async function onboard(req, res) {
     res.status(500).json({ message: "Internal Server Error" });
   }
 }
+
+export const getMe = (req, res) => {
+  res.status(200).json({ user: req.user });
+};
