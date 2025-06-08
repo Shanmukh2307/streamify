@@ -35,16 +35,27 @@ app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok" });
 });
 
+// API routes
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/chat", chatRoutes);
 
+// Only serve static files if we're in production and the frontend build exists
 if (process.env.NODE_ENV === "production") {
-  app.use(express.static(path.join(__dirname, "../../frontend/dist")));
-
-  app.get("*", (req, res) => {
-    res.sendFile(path.join(__dirname, "../../frontend/dist/index.html"));
-  });
+  try {
+    const frontendPath = path.join(__dirname, "../../frontend/dist");
+    // Check if the frontend build directory exists
+    if (require('fs').existsSync(frontendPath)) {
+      app.use(express.static(frontendPath));
+      app.get("*", (req, res) => {
+        res.sendFile(path.join(frontendPath, "index.html"));
+      });
+    } else {
+      console.log("Frontend build not found, skipping static file serving");
+    }
+  } catch (error) {
+    console.log("Error serving static files:", error);
+  }
 }
 
 // Error handling middleware
